@@ -42,10 +42,7 @@ export default router;
 
 router.post('/', requireAuth, async (req, res) => {
   try {
-    if (process.env.NODE_ENV !== 'production') {
-      // eslint-disable-next-line no-console
-      console.log('[monitors] create called by', { userId: (req as any).userId });
-    }
+    // requestor userId present via auth middleware
     const { type = 'web_app', name, url, method = 'GET', expectedStatus = 200, intervalSeconds = 60, timeoutMs = 10000, headers = null, isPaused = false, notifyEmails } = req.body || {};
     if (!name || !url) {
       return res.status(400).json({ error: 'name_and_url_required' });
@@ -243,6 +240,34 @@ router.get('/:id/metrics', async (req, res) => {
     return res.json({ rangeDays: days, uptimePct, avgResponseMs: isFinite(avgAll) ? avgAll : 0, days: daysOut });
   } catch (err) {
     return res.status(500).json({ error: 'failed_to_get_metrics' });
+  }
+});
+
+// Paginated checks with optional date range filters
+router.get('/:id/checks', async (req, res) => {
+  try {
+    const { id } = req.params as { id: string };
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
+    const page = Math.max(0, Number(req.query.page) || 0);
+    const offset = page * limit;
+    const from = typeof req.query.from === 'string' ? new Date(`${req.query.from}T00:00:00.000Z`) : undefined;
+    const toRaw = typeof req.query.to === 'string' ? new Date(`${req.query.to}T00:00:00.000Z`) : undefined;
+    const to = toRaw ? new Date(toRaw.getTime() + 24*60*60*1000) : undefined; // inclusive day
+
+    const where: any = { monitorId: id };
+    if (from && to) where.createdAt = { [Op.gte]: from, [Op.lt]: to };
+    else if (from) where.createdAt = { [Op.gte]: from };
+    else if (to) where.createdAt = { [Op.lt]: to };
+
+    const { rows, count } = await (Check as any).findAndCountAll({
+      where,
+      order: [['createdAt', 'DESC']],
+      limit,
+      offset,
+    });
+    res.json({ rows, total: count, page, limit });
+  } catch (err) {
+    res.status(500).json({ error: 'failed_to_list_checks' });
   }
 });
 

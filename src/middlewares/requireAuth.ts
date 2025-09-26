@@ -15,19 +15,9 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
         token = auth.slice('Bearer '.length);
       }
     }
-    if (!token) {
-      if (process.env.NODE_ENV !== 'production') {
-        // eslint-disable-next-line no-console
-        console.log('[auth] missing session cookie');
-      }
-      return res.status(401).json({ error: 'unauthorized' });
-    }
+    if (!token) return res.status(401).json({ error: 'unauthorized' });
     const payload = jwt.verify(token, JWT_SECRET) as any;
     (req as any).userId = payload.sub;
-    if (process.env.NODE_ENV !== 'production') {
-      // eslint-disable-next-line no-console
-      console.log('[auth] session ok', { userId: payload.sub });
-    }
     // refresh cookie on activity
     const refreshed = jwt.sign({ sub: payload.sub }, JWT_SECRET, { expiresIn: Math.floor(SESSION_MS / 1000) });
     res.cookie(COOKIE_NAME, refreshed, {

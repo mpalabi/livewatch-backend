@@ -8,6 +8,7 @@ import { initModels } from '@db/models';
 import { setupSocket, getSocketStats } from '@src/realtime/socket';
 import { startMonitorScheduler } from '@src/scheduler/monitorScheduler';
 import { notify } from '@src/services/notifications';
+import { runMigrationsOnStartup } from '@db/init';
 import monitorsRouter from '@routes/monitors';
 import authRouter from '@routes/auth';
 import cookieParser from 'cookie-parser';
@@ -36,6 +37,9 @@ initModels();
 sequelize.authenticate()
   .then(() => console.log('DB connected'))
   .catch((err) => console.error('DB connection error', err));
+runMigrationsOnStartup()
+  .then(() => console.log('DB migrations ensured'))
+  .catch(() => {});
 startMonitorScheduler(notify, (event, data) => io.emit(event, data));
 const port = Number(process.env.PORT || 4000);
 server.listen(port, () => { console.log(`Server running on http://localhost:${port}`); });
