@@ -11,7 +11,11 @@ import { notify } from '@src/services/notifications';
 import monitorsRouter from '@routes/monitors';
 import authRouter from '@routes/auth';
 import cookieParser from 'cookie-parser';
+
+
 const app = express();
+
+
 applySecurity(app);
 app.use(morgan('dev'));
 app.use(express.json());

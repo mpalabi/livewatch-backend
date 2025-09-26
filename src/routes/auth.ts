@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { User } from '@db/models';
 import sequelize from '@db/index';
 import { literal } from 'sequelize';
-import { setSessionCookie } from '@middlewares/requireAuth';
+import { setSessionCookie, createSessionToken } from '@middlewares/requireAuth';
 import { requireAuth } from '@middlewares/requireAuth';
 import { sendEmail } from '@src/services/mailer';
 
@@ -12,7 +12,10 @@ router.post('/request', async (req, res) => {
   try {
     const { email } = req.body || {};
     if (!email) return res.status(400).json({ error: 'email_required' });
-    const [user] = await (User as any).findOrCreate({ where: { email }, defaults: { name: email.split('@')[0], passwordHash: 'x' } });
+    const emailNorm = String(email).trim().toLowerCase();
+    // eslint-disable-next-line no-console
+    console.log('[auth] request code', { email: emailNorm });
+    const [user] = await (User as any).findOrCreate({ where: { email: emailNorm }, defaults: { name: emailNorm.split('@')[0], passwordHash: 'x' } });
     const code = String(Math.floor(100000 + Math.random() * 900000));
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     await sequelize.query(
@@ -20,8 +23,10 @@ router.post('/request', async (req, res) => {
       { bind: [user.id, code, expiresAt] }
     );
     try {
-      await sendEmail(email, 'Your LiveWatch login code', `Your code is ${code}. It expires in 10 minutes.`);
+      await sendEmail(emailNorm, 'Your LiveWatch login code', `Your code is ${code}. It expires in 10 minutes.`);
     } catch {}
+    // eslint-disable-next-line no-console
+    console.log('[auth] code generated', { email: emailNorm, code });
     return res.json({ ok: true });
   } catch (err) {
     return res.status(500).json({ error: 'otp_request_failed' });
@@ -32,20 +37,40 @@ router.post('/verify', async (req, res) => {
   try {
     const { email, code } = req.body || {};
     if (!email || !code) return res.status(400).json({ error: 'email_and_code_required' });
-    const user = await (User as any).findOne({ where: { email } });
+    const emailNorm = String(email).trim().toLowerCase();
+    const codeNorm = String(code).trim();
+    // eslint-disable-next-line no-console
+    console.log('[auth] verify code', { email: emailNorm });
+    const user = await (User as any).findOne({ where: { email: emailNorm } });
     if (!user) return res.status(400).json({ error: 'invalid_user' });
-    const [result] = await sequelize.query(
-      'UPDATE "OtpCodes" SET consumed=true, "updatedAt"=now() WHERE "userId"=$1 AND code=$2 AND consumed=false AND "expiresAt">now() RETURNING id;',
-      { bind: [user.id, code] }
+    // First, lookup a valid code
+    const [rows]: any = await sequelize.query(
+      'SELECT id FROM "OtpCodes" WHERE "userId"=$1 AND code=$2 AND consumed=false AND "expiresAt">now() ORDER BY "createdAt" DESC LIMIT 1;',
+      { bind: [user.id, codeNorm] }
     );
-    // @ts-ignore
-    if (!result?.rows?.length) return res.status(400).json({ error: 'invalid_code' });
+    if (!rows || !rows.length) {
+      // In dev, log the latest code we have to help diagnose
+      if (process.env.NODE_ENV !== 'production') {
+        const [latest]: any = await sequelize.query(
+          'SELECT code, consumed, "expiresAt" FROM "OtpCodes" WHERE "userId"=$1 ORDER BY "createdAt" DESC LIMIT 1;',
+          { bind: [user.id] }
+        );
+        // eslint-disable-next-line no-console
+        console.log('[auth] verify failed - latest on record', latest?.[0]);
+      }
+      return res.status(400).json({ error: 'invalid_code' });
+    }
+    const codeId = rows[0].id;
+    await sequelize.query('UPDATE "OtpCodes" SET consumed=true, "updatedAt"=now() WHERE id=$1;', { bind: [codeId] });
     setSessionCookie(res, user.id);
-    return res.json({ ok: true, user: { id: user.id, email: user.email, name: user.name } });
+    const token = createSessionToken(user.id);
+    return res.json({ ok: true, token, user: { id: user.id, email: user.email, name: user.name } });
   } catch (err) {
     return res.status(500).json({ error: 'otp_verify_failed' });
   }
 });
+
+// SMTP test route removed
 
 export default router;
 
