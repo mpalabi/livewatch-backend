@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import { User } from '@db/models';
-import sequelize from '@db/index';
+import { User } from '../db/models';
+import sequelize from '../db/index';
 import { literal } from 'sequelize';
-import { setSessionCookie, createSessionToken, clearSessionCookie } from '@middlewares/requireAuth';
-import { requireAuth } from '@middlewares/requireAuth';
-import { sendEmail } from '@src/services/mailer';
+import { setSessionCookie, createSessionToken, clearSessionCookie } from '../middlewares/requireAuth';
+import { requireAuth } from '../middlewares/requireAuth';
+import { sendEmail } from '../services/mailer';
 
 const router = Router();
 

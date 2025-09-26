@@ -1,6 +1,6 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import sequelize from '@db/index';
+import sequelize from '../db/index';
 
 const pexec = promisify(exec);
 

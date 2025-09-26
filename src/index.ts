@@ -2,15 +2,15 @@ import 'dotenv/config';
 import express from 'express';
 import morgan from 'morgan';
 import http from 'http';
-import { applySecurity } from '@config/security';
-import sequelize from '@db/index';
-import { initModels } from '@db/models';
-import { setupSocket, getSocketStats } from '@src/realtime/socket';
-import { startMonitorScheduler } from '@src/scheduler/monitorScheduler';
-import { notify } from '@src/services/notifications';
-import { runMigrationsOnStartup } from '@db/init';
-import monitorsRouter from '@routes/monitors';
-import authRouter from '@routes/auth';
+import { applySecurity } from './config/security';
+import sequelize from './db/index';
+import { initModels } from './db/models';
+import { setupSocket, getSocketStats } from './realtime/socket';
+import { startMonitorScheduler } from './scheduler/monitorScheduler';
+import { notify } from './services/notifications';
+import { runMigrationsOnStartup } from './db/init';
+import monitorsRouter from './routes/monitors';
+import authRouter from './routes/auth';
 import cookieParser from 'cookie-parser';
 
 

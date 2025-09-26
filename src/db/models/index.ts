@@ -1,4 +1,4 @@
-import sequelize from '@db/index';
+import sequelize from '../../db/index';
 import { initUser, User } from './User';
 import { initMonitor, Monitor } from './Monitor';
 import { initNotificationChannel, NotificationChannel } from './NotificationChannel';

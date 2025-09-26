@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 import fetch from 'node-fetch';
-import { Monitor, Check } from '@db/models';
+import { Monitor, Check } from '../db/models';
 import { literal } from 'sequelize';
 export function startMonitorScheduler(notify: (payload: any) => Promise<void>, emit: (event: string, data: any) => void) {
   cron.schedule('*/4 * * * *', async () => {

@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { Monitor, Check, User, NotificationChannel, MonitorNotification, MonitorShare } from '@db/models';
-import { requireAuth } from '@middlewares/requireAuth';
+import { Monitor, Check, User, NotificationChannel, MonitorNotification, MonitorShare } from '../db/models';
+import { requireAuth } from '../middlewares/requireAuth';
 import { Op, Sequelize } from 'sequelize';
 
 const router = Router();
