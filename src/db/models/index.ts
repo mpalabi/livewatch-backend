@@ -4,12 +4,14 @@ import { initMonitor, Monitor } from './Monitor';
 import { initNotificationChannel, NotificationChannel } from './NotificationChannel';
 import { initMonitorNotification, MonitorNotification } from './MonitorNotification';
 import { initCheck, Check } from './Check';
+import { initMonitorShare, MonitorShare } from './MonitorShare';
 export function initModels() {
   initUser(sequelize);
   initMonitor(sequelize);
   initNotificationChannel(sequelize);
   initMonitorNotification(sequelize);
   initCheck(sequelize);
+  initMonitorShare(sequelize);
   Monitor.belongsTo(User, { foreignKey: 'userId' });
   User.hasMany(Monitor, { foreignKey: 'userId' });
   NotificationChannel.belongsTo(User, { foreignKey: 'userId' });
@@ -20,5 +22,8 @@ export function initModels() {
   NotificationChannel.hasMany(MonitorNotification, { foreignKey: 'channelId' });
   Check.belongsTo(Monitor, { foreignKey: 'monitorId' });
   Monitor.hasMany(Check, { foreignKey: 'monitorId' });
+  MonitorShare.belongsTo(Monitor, { foreignKey: 'monitorId' });
+  Monitor.hasMany(MonitorShare, { foreignKey: 'monitorId' });
+  MonitorShare.belongsTo(User, { foreignKey: 'userId' });
 }
-export { sequelize, User, Monitor, NotificationChannel, MonitorNotification, Check };
+export { sequelize, User, Monitor, NotificationChannel, MonitorNotification, Check, MonitorShare };

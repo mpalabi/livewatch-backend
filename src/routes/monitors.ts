@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { Monitor, Check, User, NotificationChannel, MonitorNotification } from '@db/models';
+import { Monitor, Check, User, NotificationChannel, MonitorNotification, MonitorShare } from '@db/models';
 import { requireAuth } from '@middlewares/requireAuth';
 import { Op, Sequelize } from 'sequelize';
 
@@ -7,7 +7,11 @@ const router = Router();
 
 router.get('/', async (_req, res) => {
   try {
-    const monitors = await Monitor.findAll({ order: [['createdAt', 'DESC']] });
+    const userId = (_req as any).userId;
+    const myMonitors = await Monitor.findAll({ where: { userId }, order: [['createdAt', 'DESC']] });
+    const sharedIds: string[] = (await (MonitorShare as any).findAll({ where: { userId, status: 'accepted' }, attributes: ['monitorId'] })).map((s: any) => s.monitorId);
+    const sharedMonitors = sharedIds.length ? await Monitor.findAll({ where: { id: sharedIds }, order: [['createdAt', 'DESC']] }) : [];
+    const monitors = [...myMonitors, ...sharedMonitors];
     const results = [] as Array<any>;
     for (const m of monitors) {
       const latest = await Check.findOne({ where: { monitorId: m.id }, order: [['createdAt', 'DESC']] });

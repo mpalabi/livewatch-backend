@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { User } from '@db/models';
 import sequelize from '@db/index';
 import { literal } from 'sequelize';
-import { setSessionCookie, createSessionToken } from '@middlewares/requireAuth';
+import { setSessionCookie, createSessionToken, clearSessionCookie } from '@middlewares/requireAuth';
 import { requireAuth } from '@middlewares/requireAuth';
 import { sendEmail } from '@src/services/mailer';
 
@@ -71,6 +71,11 @@ router.post('/verify', async (req, res) => {
 });
 
 // SMTP test route removed
+
+router.post('/logout', (_req, res) => {
+  clearSessionCookie(res);
+  return res.json({ ok: true });
+});
 
 export default router;
 

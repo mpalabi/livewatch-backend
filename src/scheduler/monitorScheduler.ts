@@ -20,9 +20,22 @@ export function startMonitorScheduler(notify: (payload: any) => Promise<void>, e
         status = 'down';
       }
       const responseTimeMs = Date.now() - start;
+      // Look at last two checks before inserting the new one
+      const prevTwo = await Check.findAll({ where: { monitorId: monitor.id }, order: [['createdAt', 'DESC']], limit: 2 });
+      const prev1 = prevTwo[0];
+      const prev2 = prevTwo[1];
+
       const check = await Check.create({ id: literal('gen_random_uuid()') as any, monitorId: monitor.id, status, httpStatus, responseTimeMs, error } as any);
       emit('check:update', { monitorId: monitor.id, status, httpStatus, responseTimeMs, error, createdAt: check.createdAt });
-      if (status === 'down') { await notify({ type: 'down', monitor }); }
+
+      // Notify when two consecutive downs (including current) and previous-previous wasn't down (first alert burst)
+      if (status === 'down' && prev1?.status === 'down' && (!prev2 || prev2.status !== 'down')) {
+        await notify({ type: 'down', monitor });
+      }
+      // Notify recovery when two consecutive ups and previous-previous wasn't up
+      if (status === 'up' && prev1?.status === 'up' && (!prev2 || prev2.status !== 'up')) {
+        await notify({ type: 'recovery', monitor });
+      }
     }
   });
 }

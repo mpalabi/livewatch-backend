@@ -46,4 +46,13 @@ export function setSessionCookie(res: Response, userId: string) {
   });
 }
 
+export function clearSessionCookie(res: Response) {
+  res.cookie(COOKIE_NAME, '', {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: (isProd ? 'none' : 'lax') as any,
+    maxAge: 0,
+  });
+}
+
 
