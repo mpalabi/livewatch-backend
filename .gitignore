@@ -1,0 +1,29 @@
+# Node / TypeScript
+node_modules/
+dist/
+build/
+coverage/
+
+# Env / secrets
+.env
+.env.*
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs/
+*.log
+
+# OS / Editor
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Sequelize
+src/db/config.*.json
+
+
