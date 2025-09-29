@@ -1,58 +1,33 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
-let transporter: nodemailer.Transporter | null = null;
+const resend = new Resend(process.env.RESEND_API_KEY || '');
 
-function getTransport() {
-  if (transporter) return transporter;
-  const host = process.env.SMTP_HOST;
-  const port = Number(process.env.SMTP_PORT || 587);
-  const secureFromPort = port === 465;
-  const secureEnv = (process.env.SMTP_SECURE || '').toLowerCase() === 'true';
-  const secure = secureEnv || secureFromPort;
-  const requireTls = (process.env.SMTP_REQUIRE_TLS || '').toLowerCase() === 'true' || (!secure && port === 587);
-  const debug = (process.env.SMTP_DEBUG || '').toLowerCase() === 'true';
-  const connectionTimeout = Number(process.env.SMTP_CONN_TIMEOUT || 20000);
-  const greetingTimeout = Number(process.env.SMTP_GREET_TIMEOUT || 20000);
-  const socketTimeout = Number(process.env.SMTP_SOCKET_TIMEOUT || 30000);
-  transporter = nodemailer.createTransport({
-    host,
-    port,
-    secure,
-    requireTLS: requireTls,
-    auth: process.env.SMTP_USER && (process.env.SMTP_PASS || process.env.EMAIL_PASSWORD)
-      ? { user: process.env.SMTP_USER, pass: (process.env.SMTP_PASS || process.env.EMAIL_PASSWORD) as string }
-      : undefined,
-    logger: debug,
-    debug,
-    connectionTimeout,
-    greetingTimeout,
-    socketTimeout,
-    tls: host ? { servername: host } : undefined,
-  });
-  return transporter;
-}
-
-export async function sendEmail(to: string, subject: string, text: string, html?: string) {
-  const tr = getTransport();
-  const from = process.env.SMTP_FROM || 'no-reply@livewatch.local';
-  // eslint-disable-next-line no-console
-  console.log('[smtp] sending', {
-    host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT,
-    secure: process.env.SMTP_SECURE || (Number(process.env.SMTP_PORT || 587) === 465),
-    from,
-    to,
-    subject,
-  });
-  try {
-    const info = await tr.sendMail({ from, to, subject, text, html });
-    // eslint-disable-next-line no-console
-    console.log('[smtp] sent', { messageId: info.messageId, accepted: info.accepted, rejected: info.rejected });
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error('[smtp] send failed', err);
-    throw err;
+export async function sendEmail(to: string | string[], subject: string, text: string, html?: string) {
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error('RESEND_API_KEY is not set');
   }
+  const from = process.env.RESEND_FROM || 'LiveWatch <no-reply@livewatch.local>';
+  const toList = Array.isArray(to) ? to : [to];
+
+  // eslint-disable-next-line no-console
+  console.log('[resend] sending', { from, to: toList, subject });
+
+  const { data, error } = await resend.emails.send({
+    from,
+    to: toList,
+    subject,
+    text,
+    html: html || `<pre>${escapeHtml(text)}</pre>`,
+  });
+
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.error('[resend] send failed', error);
+    throw error;
+  }
+
+  // eslint-disable-next-line no-console
+  console.log('[resend] sent', { id: (data as any)?.id || null });
 }
 
 export function renderEmailHtml(opts: { title: string; subtitle?: string; lines?: string[]; cta?: { label: string; url: string } | null }) {
@@ -66,7 +41,7 @@ export function renderEmailHtml(opts: { title: string; subtitle?: string; lines?
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
     <style>
-      body { background:#0b0c0f; font-family: -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:#e5e7eb; padding:24px; }
+      body { background:#0b0c0f; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:#e5e7eb; padding:24px; }
       .card { max-width:560px; margin:0 auto; background:#111827; border:1px solid #1f2937; border-radius:12px; overflow:hidden; }
       .hd { padding:20px 20px 0 20px; }
       .tt { font-size:18px; font-weight:600; color:#f9fafb; }
@@ -83,11 +58,11 @@ export function renderEmailHtml(opts: { title: string; subtitle?: string; lines?
       <div class="hd">
         <span class="badge">LiveWatch</span>
         <div class="tt">${escapeHtml(title)}</div>
-        ${subtitle ? `<div class=\"st\">${escapeHtml(subtitle)}</div>` : ''}
+        ${subtitle ? `<div class="st">${escapeHtml(subtitle)}</div>` : ''}
       </div>
       <div class="ct">
-        ${lines.map(l => `<div class=\"line\">${escapeHtml(l)}</div>`).join('')}
-        ${cta ? `<a class=\"cta\" href=\"${encodeURI(cta.url)}\">${escapeHtml(cta.label)}</a>` : ''}
+        ${lines.map(l => `<div class="line">${escapeHtml(l)}</div>`).join('')}
+        ${cta ? `<a class="cta" href="${encodeURI(cta.url)}">${escapeHtml(cta.label)}</a>` : ''}
       </div>
       <div class="ft">You are receiving this because you are subscribed to monitor alerts.</div>
     </div>
@@ -102,15 +77,4 @@ function escapeHtml(input: string) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
-}
-export async function verifySmtp() {
-  try {
-    const tr = getTransport();
-    await tr.verify();
-    // eslint-disable-next-line no-console
-    console.log('[smtp] verified connection to', process.env.SMTP_HOST, process.env.SMTP_PORT);
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error('[smtp] verification failed', err);
-  }
 }

@@ -10,10 +10,15 @@ export function applySecurity(app: Express) {
     .map(s => s.trim())
     .filter(Boolean);
   const allowList = Array.from(new Set([...defaults, ...extra]));
+  const patterns = [/^https?:\/\/localhost(?::\d+)?$/i, /\.vercel\.app$/i];
   app.use(cors({
     origin(origin, cb) {
       if (!origin) return cb(null, true);
       if (allowList.includes(origin)) return cb(null, true);
+      try {
+        const host = new URL(origin).host;
+        if (patterns.some((re) => re.test(host))) return cb(null, true);
+      } catch {}
       return cb(new Error('Not allowed by CORS'));
     },
     credentials: true,
