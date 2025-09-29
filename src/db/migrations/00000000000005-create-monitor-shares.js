@@ -4,7 +4,7 @@
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable('MonitorShares', {
-      id: { type: Sequelize.UUID, allowNull: false, defaultValue: Sequelize.literal('gen_random_uuid()'), primaryKey: true },
+      id: { type: Sequelize.UUID, allowNull: false, primaryKey: true },
       monitorId: { type: Sequelize.UUID, allowNull: false, references: { model: 'Monitors', key: 'id' }, onDelete: 'CASCADE' },
       userId: { type: Sequelize.UUID, allowNull: true, references: { model: 'Users', key: 'id' }, onDelete: 'SET NULL' },
       email: { type: Sequelize.STRING, allowNull: true },

@@ -4,7 +4,7 @@
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable('OtpCodes', {
-      id: { type: Sequelize.UUID, allowNull: false, defaultValue: Sequelize.literal('gen_random_uuid()'), primaryKey: true },
+      id: { type: Sequelize.UUID, allowNull: false, primaryKey: true },
       userId: { type: Sequelize.UUID, allowNull: false, references: { model: 'Users', key: 'id' }, onDelete: 'CASCADE' },
       code: { type: Sequelize.STRING, allowNull: false },
       expiresAt: { type: Sequelize.DATE, allowNull: false },

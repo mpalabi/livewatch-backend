@@ -3,7 +3,7 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    const uuid = { type: Sequelize.UUID, defaultValue: Sequelize.literal('gen_random_uuid()'), allowNull: false, primaryKey: true };
+    const uuid = { type: Sequelize.UUID, allowNull: false, primaryKey: true };
 
     await queryInterface.createTable('Users', {
       id: uuid,

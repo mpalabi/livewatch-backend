@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { User } from '../db/models';
 import sequelize from '../db/index';
 import { literal } from 'sequelize';
+import { v4 as uuidv4 } from 'uuid';
 import { setSessionCookie, createSessionToken, clearSessionCookie } from '../middlewares/requireAuth';
 import { requireAuth } from '../middlewares/requireAuth';
 import { sendEmail } from '../services/mailer';
@@ -19,8 +20,8 @@ router.post('/request', async (req, res) => {
     const code = String(Math.floor(100000 + Math.random() * 900000));
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     await sequelize.query(
-      'INSERT INTO "OtpCodes" (id, "userId", code, "expiresAt", consumed, "createdAt", "updatedAt") VALUES (gen_random_uuid(), $1, $2, $3, false, now(), now());',
-      { bind: [user.id, code, expiresAt] }
+      'INSERT INTO "OtpCodes" (id, "userId", code, "expiresAt", consumed, "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, false, now(), now());',
+      { bind: [uuidv4(), user.id, code, expiresAt] }
     );
     try {
       await sendEmail(emailNorm, 'Your LiveWatch login code', `Your code is ${code}. It expires in 10 minutes.`);

@@ -5,11 +5,16 @@ import { Op, Sequelize } from 'sequelize';
 
 const router = Router();
 
-router.get('/', async (_req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   try {
-    const userId = (_req as any).userId;
+    const userId = (req as any).userId as string;
     const myMonitors = await Monitor.findAll({ where: { userId }, order: [['createdAt', 'DESC']] });
-    const sharedIds: string[] = (await (MonitorShare as any).findAll({ where: { userId, status: 'accepted' }, attributes: ['monitorId'] })).map((s: any) => s.monitorId);
+    let sharedIds: string[] = [];
+    try {
+      sharedIds = (await (MonitorShare as any).findAll({ where: { userId, status: 'accepted' }, attributes: ['monitorId'] })).map((s: any) => s.monitorId);
+    } catch (_) {
+      sharedIds = [];
+    }
     const sharedMonitors = sharedIds.length ? await Monitor.findAll({ where: { id: sharedIds }, order: [['createdAt', 'DESC']] }) : [];
     const monitors = [...myMonitors, ...sharedMonitors];
     const results = [] as Array<any>;
@@ -95,6 +100,67 @@ router.post('/', requireAuth, async (req, res) => {
     console.error('failed_to_create_monitor', err);
     const message = err?.message || 'failed_to_create_monitor';
     res.status(500).json({ error: 'failed_to_create_monitor', message });
+  }
+});
+
+// Update a monitor (owner only)
+router.put('/:id', requireAuth, async (req, res) => {
+  try {
+    const userId = (req as any).userId as string;
+    const { id } = req.params as { id: string };
+    const monitor = await Monitor.findOne({ where: { id, userId } });
+    if (!monitor) return res.status(404).json({ error: 'not_found_or_forbidden' });
+
+    const allowed: Array<keyof any> = [
+      'type','name','url','method','expectedStatus','intervalSeconds','timeoutMs','headers','isPaused'
+    ];
+    const updates: any = {};
+    for (const key of allowed) {
+      if (Object.prototype.hasOwnProperty.call(req.body || {}, key)) {
+        updates[key] = (req.body as any)[key];
+      }
+    }
+    await (monitor as any).update(updates);
+
+    // Optional: update notification email links
+    const { notifyEmails } = req.body || {};
+    let channelsUpdated: any[] = [];
+    if (typeof notifyEmails !== 'undefined') {
+      const emails: string[] = Array.isArray(notifyEmails)
+        ? notifyEmails
+        : String(notifyEmails || '')
+            .split(',')
+            .map((e) => e.trim().toLowerCase())
+            .filter(Boolean);
+      const unique = Array.from(new Set(emails));
+
+      // Ensure links exist for provided emails
+      for (const email of unique) {
+        const [channel] = await (NotificationChannel as any).findOrCreate({
+          where: { userId, type: 'email', destination: email },
+          defaults: { settings: null },
+        });
+        channelsUpdated.push({ id: channel.id, destination: channel.destination });
+        await (MonitorNotification as any).findOrCreate({
+          where: { monitorId: monitor.id, channelId: channel.id },
+          defaults: { notifyOn: 'down', thresholdMs: null },
+        });
+      }
+      // Optionally detach old links that are no longer in the list
+      const existingLinks: any[] = await (MonitorNotification as any).findAll({ where: { monitorId: monitor.id } });
+      for (const link of existingLinks) {
+        const chan = await (NotificationChannel as any).findByPk(link.channelId);
+        if (chan?.type === 'email' && chan?.userId === userId) {
+          if (!unique.includes(String(chan.destination).toLowerCase())) {
+            await (MonitorNotification as any).destroy({ where: { monitorId: monitor.id, channelId: chan.id } });
+          }
+        }
+      }
+    }
+
+    return res.json({ monitor, notifications: channelsUpdated });
+  } catch (err) {
+    return res.status(500).json({ error: 'failed_to_update_monitor' });
   }
 });
 

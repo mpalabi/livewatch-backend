@@ -1,4 +1,4 @@
-import { Model, DataTypes, InferAttributes, InferCreationAttributes, CreationOptional, Sequelize, ForeignKey, literal } from 'sequelize';
+import { Model, DataTypes, InferAttributes, InferCreationAttributes, CreationOptional, Sequelize, ForeignKey } from 'sequelize';
 import { Monitor } from './Monitor';
 import { User } from './User';
 
@@ -15,7 +15,7 @@ export class MonitorShare extends Model<InferAttributes<MonitorShare>, InferCrea
 
 export function initMonitorShare(sequelize: Sequelize) {
   MonitorShare.init({
-    id: { type: DataTypes.UUID, allowNull: false, defaultValue: literal('gen_random_uuid()'), primaryKey: true },
+    id: { type: DataTypes.UUID, allowNull: false, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     monitorId: { type: DataTypes.UUID, allowNull: false },
     userId: { type: DataTypes.UUID, allowNull: true },
     email: { type: DataTypes.STRING, allowNull: true },
