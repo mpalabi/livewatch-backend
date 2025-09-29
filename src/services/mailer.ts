@@ -4,14 +4,30 @@ let transporter: nodemailer.Transporter | null = null;
 
 function getTransport() {
   if (transporter) return transporter;
-  const secureFromPort = Number(process.env.SMTP_PORT || 587) === 465;
+  const host = process.env.SMTP_HOST;
+  const port = Number(process.env.SMTP_PORT || 587);
+  const secureFromPort = port === 465;
+  const secureEnv = (process.env.SMTP_SECURE || '').toLowerCase() === 'true';
+  const secure = secureEnv || secureFromPort;
+  const requireTls = (process.env.SMTP_REQUIRE_TLS || '').toLowerCase() === 'true' || (!secure && port === 587);
+  const debug = (process.env.SMTP_DEBUG || '').toLowerCase() === 'true';
+  const connectionTimeout = Number(process.env.SMTP_CONN_TIMEOUT || 20000);
+  const greetingTimeout = Number(process.env.SMTP_GREET_TIMEOUT || 20000);
+  const socketTimeout = Number(process.env.SMTP_SOCKET_TIMEOUT || 30000);
   transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: process.env.SMTP_SECURE === 'true' || secureFromPort,
+    host,
+    port,
+    secure,
+    requireTLS: requireTls,
     auth: process.env.SMTP_USER && (process.env.SMTP_PASS || process.env.EMAIL_PASSWORD)
       ? { user: process.env.SMTP_USER, pass: (process.env.SMTP_PASS || process.env.EMAIL_PASSWORD) as string }
       : undefined,
+    logger: debug,
+    debug,
+    connectionTimeout,
+    greetingTimeout,
+    socketTimeout,
+    tls: host ? { servername: host } : undefined,
   });
   return transporter;
 }
