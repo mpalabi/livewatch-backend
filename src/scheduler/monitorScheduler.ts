@@ -3,6 +3,16 @@ import fetch from 'node-fetch';
 import { Monitor, Check } from '../db/models';
 import { v4 as uuidv4 } from 'uuid';
 import { literal } from 'sequelize';
+function isWithinDaytimeOnlyCriticalWindow(date: Date) {
+  const tz = String(process.env.REPORT_TZ || 'UTC');
+  // Convert to target TZ by building components in that TZ using locale options
+  const fmt = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour12: false, hour: '2-digit' });
+  const hour = Number(fmt.format(date));
+  const morningHour = Math.max(0, Math.min(23, Number(process.env.REPORT_MORNING_HOUR || 8)));
+  const eveningHour = Math.max(0, Math.min(23, Number(process.env.REPORT_EVENING_HOUR || 19)));
+  return hour >= morningHour && hour < eveningHour;
+}
+
 export function startMonitorScheduler(notify: (payload: any) => Promise<void>, emit: (event: string, data: any) => void) {
   cron.schedule('*/4 * * * *', async () => {
     console.log('[scheduler] tick (every 4 minutes)');
@@ -34,8 +44,12 @@ export function startMonitorScheduler(notify: (payload: any) => Promise<void>, e
         await notify({ type: 'down', monitor });
       }
       // Notify recovery when two consecutive ups and previous-previous wasn't up
+      // Only send recovery outside daytime window; during daytime we only send critical (down)
       if (status === 'up' && prev1?.status === 'up' && (!prev2 || prev2.status !== 'up')) {
-        await notify({ type: 'recovery', monitor });
+        const suppressRecovery = isWithinDaytimeOnlyCriticalWindow(new Date());
+        if (!suppressRecovery) {
+          await notify({ type: 'recovery', monitor });
+        }
       }
     }
   });

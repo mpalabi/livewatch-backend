@@ -8,6 +8,7 @@ import { initModels } from './db/models';
 import { setupSocket, getSocketStats } from './realtime/socket';
 import { startMonitorScheduler } from './scheduler/monitorScheduler';
 import { notify } from './services/notifications';
+import { startReportScheduler } from './services/reports';
 import { runMigrationsOnStartup } from './db/init';
 import monitorsRouter from './routes/monitors';
 import authRouter from './routes/auth';
@@ -41,5 +42,6 @@ runMigrationsOnStartup()
   .then(() => console.log('DB migrations ensured'))
   .catch(() => {});
 startMonitorScheduler(notify, (event, data) => io.emit(event, data));
+startReportScheduler();
 const port = Number(process.env.PORT || 4000);
 server.listen(port, () => { console.log(`Server running on http://localhost:${port}`); });
